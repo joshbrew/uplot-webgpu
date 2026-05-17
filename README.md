@@ -1,4 +1,4 @@
-# uPlot WebGPU
+# uPlot.js WebGPU edition
 
 ```bash
 npm i uplot-webgpu

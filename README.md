@@ -10,7 +10,9 @@ It keeps the normal uPlot setup pattern, options, legends, cursors, scales, axes
 
 The demo tests ~4 million points animating on 8 charts and handily achieves >60fps on a decent laptop. 
 
-Use it when you want uPlot but need more headroom for large live buffers, dense lines, heatmaps, ribbons, dashboards, animation-heavy views, or GPU-resident data workflows. 
+<img width="100%" alt="Screenshot 2026-05-17 112752" src="https://github.com/user-attachments/assets/9b0be827-3b1a-481a-b01e-5123ee994d08" />
+
+Use it when you want uPlot but need more headroom for large live buffers, dense lines, heatmaps, ribbons, dashboards, animation-heavy views, or GPUBuffer-resident data workflows. 
 
 The base uPlot Canvas2D renderer is already extremely fast. For small static charts, Canvas2D may still load faster and feel just as good or better. WebGPU has a higher startup cost because the browser must create a GPU device and compile render pipelines asynchronously. The WebGPU path is designed to pay off when charts are large, repeated, animated, or connected to other GPU work.
 

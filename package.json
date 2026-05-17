@@ -1,0 +1,110 @@
+{
+  "name": "uplot-webgpu",
+  "version": "0.1.0",
+  "description": "Dummy tinybuild app, for building. Replace description before publishing.",
+  "main": "./dist/uPlot.js",
+  "module": "./dist/uPlot.esm.js",
+  "types": "./dist/uPlot.d.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tinybuild",
+    "build": "tinybuild build",
+    "serve": "tinybuild serve",
+    "init": "node tinybuild/init.js",
+    "concurrent": "concurrently \"npm run python\" \"npm start\"",
+    "dev": "npm run pip && npm i --save-dev concurrently && npm i --save-dev nodemon && npm run concurrent",
+    "startdev": "nodemon --exec \"node tinybuild.js\" -e ejs,js,ts,jsx,tsx,css,html,jpg,png,scss,txt,csv",
+    "python": "python python/server.py",
+    "pip": "pip install quart && pip install websockets",
+    "pwa": "npm i workbox-cli && workbox generateSW node_server/pwa/workbox-config.js && npm run build && npm start",
+    "electron": "electron ./electron",
+    "android": "npx cap open android",
+    "ios": "npx cap open ios",
+    "tauri": "tauri",
+    "parity": "node scripts/parity_check.mjs",
+    "dropin": "node scripts/dropin_check.mjs",
+    "size:audit": "node scripts/size_audit.mjs"
+  },
+  "author": "",
+  "license": "",
+  "keywords": [
+    "esbuild"
+  ],
+  "devDependencies": {
+    "@webgpu/types": "~0.1.70"
+  },
+  "nodemonConfig": {
+    "env": {
+      "NODEMON": true
+    },
+    "ignore": [
+      "dist/",
+      ".temp/"
+    ]
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./uPlot": {
+      "types": "./uPlot.d.ts",
+      "import": "./uPlot.js",
+      "default": "./uPlot.js"
+    },
+    "./webgpu": {
+      "types": "./webgpu/WebGPURenderer.d.ts",
+      "import": "./webgpu/WebGPURenderer.js",
+      "default": "./webgpu/WebGPURenderer.js"
+    },
+    "./webgpu/WebGPURenderer": {
+      "types": "./webgpu/WebGPURenderer.d.ts",
+      "import": "./webgpu/WebGPURenderer.js",
+      "default": "./webgpu/WebGPURenderer.js"
+    },
+    "./webgpu/GPUPath": {
+      "types": "./webgpu/GPUPath.d.ts",
+      "import": "./webgpu/GPUPath.js",
+      "default": "./webgpu/GPUPath.js"
+    },
+    "./core": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./full": {
+      "types": "./index.full.d.ts",
+      "import": "./index.full.js",
+      "default": "./index.full.js"
+    },
+    "./bench": {
+      "types": "./index.bench.d.ts",
+      "import": "./index.bench.js",
+      "default": "./index.bench.js"
+    },
+    "./renderer": {
+      "types": "./index.renderer.d.ts",
+      "import": "./index.renderer.js",
+      "default": "./index.renderer.js"
+    },
+    "./canvas2d-reference": {
+      "types": "./old/uPlot.canvas2d.d.ts",
+      "import": "./old/uPlot.canvas2d.js",
+      "default": "./old/uPlot.canvas2d.js"
+    },
+    "./smoke": {
+      "import": "./webgpu/smokeTest.js",
+      "default": "./webgpu/smokeTest.js"
+    },
+    "./uPlot.css": {
+      "import": "./uPlot.css",
+      "default": "./uPlot.css"
+    },
+    "./webgpu/exporters": {
+      "types": "./webgpu/exporters.d.ts",
+      "import": "./webgpu/exporters.js",
+      "default": "./webgpu/exporters.js"
+    }
+  }
+}

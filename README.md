@@ -4,6 +4,10 @@
 npm i uplot-webgpu
 ```
 
+[![Npm package version](https://img.shields.io/npm/v/uplot-webgpu)](https://npmjs.com/package/graphscript)
+[![Npm package monthly downloads](https://badgen.net/npm/dm/uplot-webgpu)](https://npmjs.ccom/package/graphscript)
+[![License: LGPL v3](https://img.shields.io/badge/license-MIT-blue.svg)](https://www.gnu.org/licenses/MIT)
+
 `uplot-webgpu` is a drop-in [uPlot](https://github.com/leeoniya/uPlot)-compatible WebGPU renderer for high-throughput browser charts.
 
 It keeps the normal uPlot setup pattern, options, legends, cursors, scales, axes, styling, selection zoom, and plugin hooks, while moving the heavy drawing path onto WebGPU.

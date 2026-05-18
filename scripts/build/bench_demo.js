@@ -4,7 +4,7 @@ import css from '../uPlot.css';
 if (uPlot.paths?.spline2 && defaultUPlot.paths && !defaultUPlot.paths.spline2)
   defaultUPlot.paths.spline2 = uPlot.paths.spline2;
 
-const BENCH_SCHEMA_VERSION = 53;
+const BENCH_SCHEMA_VERSION = 57;
 
 function makeRunId() {
   let stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -413,9 +413,65 @@ async function settleForTiming() {
   await idle(80);
 }
 
-async function submitChartFrame(chart) {
+function isCanvas2DChart(chart) {
+  let ctx = chart?.ctx;
+  return !!ctx && typeof ctx.present != 'function' && typeof ctx.getLastFrameStats != 'function';
+}
+
+function withBenchDrawTimingHooks(hooks = {}) {
+  let out = {};
+  for (let [name, handlers] of Object.entries(hooks || {}))
+    out[name] = Array.isArray(handlers) ? handlers.slice() : [handlers].filter(Boolean);
+
+  let drawClearStart = u => {
+    u._benchDrawStart = now();
+  };
+  let drawEnd = u => {
+    let t0 = Number(u._benchDrawStart);
+    if (Number.isFinite(t0))
+      u._benchLastDrawMs = Math.max(0, now() - t0);
+    u._benchLastDrawAt = now();
+  };
+
+  out.drawClear = [drawClearStart, ...(out.drawClear || [])];
+  out.draw = [...(out.draw || []), drawEnd];
+  return out;
+}
+
+function canvasDrawFrameStats(chart, drawMs) {
+  return {
+    renderPath: 'canvas2d',
+    cpuFrameMs: drawMs,
+    drawMs,
+  };
+}
+
+async function measureCanvasDrawFrame(chart) {
+  if (!chart)
+    return {submitMs: 0, frameStats: null};
+
+  await Promise.resolve();
+  let t0 = now();
+  chart.redraw?.(false, false);
+  let elapsed = now() - t0;
+  let drawMs = Number(chart._benchLastDrawMs);
+  if (!Number.isFinite(drawMs) || drawMs <= 0)
+    drawMs = elapsed;
+  return {submitMs: drawMs, frameStats: canvasDrawFrameStats(chart, drawMs)};
+}
+
+async function submitChartFrame(chart, {forceCanvasDraw = false} = {}) {
   if (!chart?.ctx)
     return {submitMs: 0, frameStats: null};
+
+  if (isCanvas2DChart(chart)) {
+    if (forceCanvasDraw)
+      return measureCanvasDrawFrame(chart);
+    let drawMs = Number(chart._benchLastDrawMs);
+    if (!Number.isFinite(drawMs) || drawMs < 0)
+      drawMs = 0;
+    return {submitMs: drawMs, frameStats: canvasDrawFrameStats(chart, drawMs)};
+  }
 
   await Promise.resolve();
   let t0 = now();
@@ -498,11 +554,13 @@ function addStyle() {
     .bench-card[data-engine="canvas2d"] { border-color: color-mix(in srgb, #d39200 55%, CanvasText 18%); }
     .bench-card h3 { margin: 0 0 6px; font-size: 14px; display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .bench-card small { font-weight: 400; opacity: 0.75; }
-    .bench-card-load { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; min-height: 20px; margin: -1px 0 6px; font-size: 11px; line-height: 1.15; color: rgba(15,23,42,0.72); }
+    .bench-card-load { display: none; flex-wrap: wrap; gap: 6px 10px; align-items: center; min-height: 0; margin: 0 0 6px; font-size: 11px; line-height: 1.15; color: rgba(15,23,42,0.72); }
     .bench-card-load b { font-size: 11px; color: rgba(15,23,42,0.92); }
+    .bench-card-load.is-running, .bench-card-load.is-error, .bench-card-load.is-live, .bench-card-load.is-done { display: flex; min-height: 18px; }
     .bench-card-load.is-running { color: rgba(15,23,42,0.54); }
     .bench-card-load.is-error { color: #b42318; }
     .bench-card-load.is-live { color: rgba(15,23,42,0.62); }
+    .bench-card-load.is-done { color: rgba(15,23,42,0.72); }
     .bench-chart { height: 340px; min-height: 340px; overflow: visible; contain: layout paint; }
     .bench-chart .uplot, .bench-chart canvas { max-width: 100%; }
     .bench-chart .uplot { overflow: visible; }
@@ -673,30 +731,30 @@ function createPage() {
       </details>
       <div class="bench-summary bench-summary-simple">
         <div class="bench-metric">Cases <b data-metric="cases">0 / 0</b></div>
-        <div class="bench-metric">WebGPU cumulative <b data-metric="webgpuTotal">0 ms</b></div>
-        <div class="bench-metric">Canvas2D cumulative <b data-metric="canvas2dTotal">0 ms</b></div>
-        <div class="bench-metric">Create total <b data-metric="create">0 ms</b></div>
-        <div class="bench-metric">Submit total <b data-metric="first">0 ms</b></div>
-        <div class="bench-metric">Update total <b data-metric="update">0 ms</b></div>
         <div class="bench-metric">Mode <b data-metric="mode">pending</b></div>
         <div class="bench-metric">Errors <b data-metric="errors">0</b></div>
         <div class="bench-metric bench-wide">Comparison <b data-metric="comparison">pending</b></div>
-        <div class="bench-hidden-metrics">
-          <b data-metric="runtime">pending</b>
-          <b data-metric="warmup">pending</b>
-          <b data-metric="longTasks">0</b>
-          <b data-metric="slowest">pending</b>
-          <b data-metric="baseline">pending</b>
-          <b data-metric="quality">pending</b>
-          <b data-metric="frameStats">pending</b>
-          <b data-metric="smoke">pending</b>
-          <b data-metric="rawRing">pending</b>
-          <b data-metric="chartDiag">pending</b>
-          <b data-metric="rawDiag">pending</b>
-          <b data-metric="budget">off</b>
-          <b data-metric="baselineDiff">none loaded</b>
-          <b data-metric="speedup">pending</b>
-        </div>
+      </div>
+      <div class="bench-hidden-metrics" style="display:none !important; visibility:hidden !important;" aria-hidden="true">
+        <b data-metric="webgpuTotal">0 ms</b>
+        <b data-metric="canvas2dTotal">0 ms</b>
+        <b data-metric="create">0 ms</b>
+        <b data-metric="first">0 ms</b>
+        <b data-metric="update">0 ms</b>
+        <b data-metric="runtime">pending</b>
+        <b data-metric="warmup">pending</b>
+        <b data-metric="longTasks">0</b>
+        <b data-metric="slowest">pending</b>
+        <b data-metric="baseline">pending</b>
+        <b data-metric="quality">pending</b>
+        <b data-metric="frameStats">pending</b>
+        <b data-metric="smoke">pending</b>
+        <b data-metric="rawRing">pending</b>
+        <b data-metric="chartDiag">pending</b>
+        <b data-metric="rawDiag">pending</b>
+        <b data-metric="budget">off</b>
+        <b data-metric="baselineDiff">none loaded</b>
+        <b data-metric="speedup">pending</b>
       </div>
       <div class="bench-log" data-log></div>
     </section>
@@ -705,7 +763,7 @@ function createPage() {
         <thead>
           <tr>
             <th>#</th><th>Engine</th><th>Status</th><th>Case</th><th>Kind</th><th>Points</th><th>Series</th>
-            <th>Create ms</th><th>Submit ms</th><th>Update avg ms</th><th>Destroy ms</th><th>Perf flag</th><th>Baseline Δ</th><th>Notes</th>
+            <th>Create ms</th><th>Draw / Submit ms</th><th>Update avg ms</th><th>Destroy ms</th><th>Perf flag</th><th>Baseline Δ</th><th>Notes</th>
           </tr>
         </thead>
         <tbody data-results></tbody>
@@ -6977,7 +7035,7 @@ function makeCard(spec) {
 
   let load = document.createElement('div');
   load.className = 'bench-card-load is-running';
-  load.textContent = 'load pending';
+  load.textContent = 'rendering';
 
   let chart = document.createElement('div');
   chart.className = 'bench-chart';
@@ -7008,16 +7066,35 @@ function setCardLoad(slot, timing) {
     return;
   }
 
-  let create = Number.isFinite(timing?.createMs) ? timing.createMs : 0;
-  let first = Number.isFinite(timing?.firstMs) ? timing.firstMs : 0;
-  let init = Number.isFinite(timing?.initMs) && timing.initMs > 0.05 ? timing.initMs : null;
-  let gpuWait = Number.isFinite(timing?.gpuWaitMs) && timing.gpuWaitMs > 0.05 ? timing.gpuWaitMs : null;
-  let update = Number.isFinite(timing?.updateMs) && timing.updateMs > 0 ? timing.updateMs : null;
-  let destroy = Number.isFinite(timing?.destroyMs) && timing.destroyMs > 0 ? timing.destroyMs : null;
-  let total = Number.isFinite(timing?.totalMs) ? timing.totalMs : create + first + (update || 0);
+  let card = slot?.card || el.closest?.('.bench-card');
+  let engineKey = slot?.engineKey || card?.dataset?.engine || '';
+  let firstLabel = engineKey == 'canvas2d' ? 'draw' : 'submit';
+  let loadMs = Number(timing?.loadMs);
+  if (!Number.isFinite(loadMs))
+    loadMs = (Number.isFinite(timing?.createMs) ? timing.createMs : 0) + (Number.isFinite(timing?.firstMs) ? timing.firstMs : 0);
 
-  el.className = 'bench-card-load';
-  el.innerHTML = `<span>load <b>${ms(total)}</b> ms</span><span>create <b>${ms(create)}</b></span><span>submit <b>${ms(first)}</b></span>${init == null ? '' : `<span>init <b>${ms(init)}</b></span>`}${gpuWait == null ? '' : `<span title="GPU queue completion is not included in load because Canvas2D does not have an equivalent wait.">gpu wait <b>${ms(gpuWait)}</b></span>`}${update == null ? '' : `<span>update <b>${ms(update)}</b></span>`}${destroy == null ? '' : `<span>destroy <b>${ms(destroy)}</b></span>`}`;
+  let parts = [];
+  if (Number.isFinite(loadMs) && loadMs > 0)
+    parts.push(['load', loadMs]);
+  if (Number.isFinite(timing?.createMs))
+    parts.push(['create', timing.createMs]);
+  if (Number.isFinite(timing?.firstMs))
+    parts.push([firstLabel, timing.firstMs]);
+  if (Number.isFinite(timing?.updateMs) && timing.updateMs > 0)
+    parts.push(['update', timing.updateMs]);
+  if (Number.isFinite(timing?.initMs) && timing.initMs > 0)
+    parts.push(['init', timing.initMs]);
+
+  el.className = parts.length ? 'bench-card-load is-done' : 'bench-card-load';
+  el.textContent = '';
+
+  for (let [label, value] of parts) {
+    let item = document.createElement('span');
+    let strong = document.createElement('b');
+    strong.textContent = ms(value);
+    item.append(`${label} `, strong, ' ms');
+    el.appendChild(item);
+  }
 }
 
 function makeResultRow(index, spec, engineLabel = '') {
@@ -7108,6 +7185,8 @@ async function createChart(uPlot, spec, data, mount, size) {
     opts.series[3].points = {show: false};
   }
 
+  opts.hooks = withBenchDrawTimingHooks(opts.hooks || {});
+
   let createStart = now();
   let chart = new uPlot(opts, data, mount);
   let createMs = now() - createStart;
@@ -7118,7 +7197,9 @@ async function createChart(uPlot, spec, data, mount, size) {
   let initMs = now() - initStart;
 
   let firstStart = now();
-  let submitted = await submitChartFrame(chart);
+  let submitted = isCanvas2DChart(chart)
+    ? await submitChartFrame(chart, {forceCanvasDraw: !Number.isFinite(Number(chart._benchLastDrawMs)) || Number(chart._benchLastDrawMs) <= 0})
+    : await submitChartFrame(chart);
   let firstMs = Number.isFinite(submitted.submitMs) ? submitted.submitMs : now() - firstStart;
   let gpuWaitMs = 0;
   if (spec.measureGpuWait === true && chart.ctx?.flush) {
@@ -7202,7 +7283,7 @@ async function runManyCharts(uPlot, spec, sharedData, mount, settings, slot = nu
       let t0 = now();
       for (let chart of charts) {
         chart.setData(sharedData, false);
-        chart.ctx?.present?.();
+        await submitChartFrame(chart);
       }
       total += now() - t0;
       await nextFrame();

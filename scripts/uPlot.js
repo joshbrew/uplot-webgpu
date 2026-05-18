@@ -3683,5 +3683,3 @@ if (FEAT_PATHS) {
 	FEAT_PATHS_SPLINE  && (paths.spline  = spline);
 	FEAT_PATHS_SPLINE2 && (paths.spline2 = spline2);
 }
-
-globalThis.uPlot = uPlot;

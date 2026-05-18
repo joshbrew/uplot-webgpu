@@ -1,0 +1,692 @@
+// binary search for index of closest value
+export function closestIdx(num?: any, arr?: any, lo?: any, hi?: any, ..._extra: any[]) {
+	let mid;
+	lo = lo || 0;
+	hi = hi || arr.length - 1;
+	let bitwise = hi <= 2147483647;
+
+	while (hi - lo > 1) {
+		mid = bitwise ? (lo + hi) >> 1 : floor((lo + hi) / 2);
+
+		if (arr[mid] < num)
+			lo = mid;
+		else
+			hi = mid;
+	}
+
+	if (num - arr[lo] <= arr[hi] - num)
+		return lo;
+
+	return hi;
+}
+
+function makeIndexOfs(predicate?: any, ..._extra: any[]) {
+	 let indexOfs = (data?: any, _i0?: any, _i1?: any, ..._extra: any[]) => {
+		let i0 = -1;
+		let i1 = -1;
+
+		for (let i = _i0; i <= _i1; i++) {
+			if (predicate(data[i])) {
+				i0 = i;
+				break;
+			}
+		}
+
+		for (let i = _i1; i >= _i0; i--) {
+			if (predicate(data[i])) {
+				i1 = i;
+				break;
+			}
+		}
+
+		return [i0, i1];
+	 };
+
+	 return indexOfs;
+}
+
+const notNullish = (v?: any, ..._extra: any[]) => v != null;
+const isPositive = (v?: any, ..._extra: any[]) => v != null && v > 0;
+
+export const nonNullIdxs = makeIndexOfs(notNullish);
+export const positiveIdxs = makeIndexOfs(isPositive);
+
+export function getMinMax(data?: any, _i0?: any, _i1?: any, sorted: any = 0, log: any = false, ..._extra: any[]) {
+//	console.log("getMinMax()");
+
+	let getEdgeIdxs = log ? positiveIdxs : nonNullIdxs;
+	let predicate = log ? isPositive : notNullish;
+
+	[_i0, _i1] = getEdgeIdxs(data, _i0, _i1);
+
+	let _min = data[_i0];
+	let _max = data[_i0];
+
+	if (_i0 > -1) {
+		if (sorted == 1) {
+			_min = data[_i0];
+			_max = data[_i1];
+		}
+		else if (sorted == -1) {
+			_min = data[_i1];
+			_max = data[_i0];
+		}
+		else {
+			for (let i = _i0; i <= _i1; i++) {
+				let v = data[i];
+
+				if (predicate(v)) {
+					if (v < _min)
+						_min = v;
+					else if (v > _max)
+						_max = v;
+				}
+			}
+		}
+	}
+
+	return [_min ?? inf, _max ?? -inf]; // todo: fix to return nulls
+}
+
+export function rangeLog(min?: any, max?: any, base?: any, fullMags?: any, ..._extra: any[]) {
+	if (base == 2)
+		fullMags = true;
+
+	let minSign = sign(min);
+	let maxSign = sign(max);
+
+	if (min == max) {
+		if (minSign == -1) {
+			min *= base;
+			max /= base;
+		}
+		else {
+			min /= base;
+			max *= base;
+		}
+	}
+
+	let logFn = base == 10 ? log10 : log2;
+
+	let growMinAbs = minSign == 1 ? floor : ceil;
+	let growMaxAbs = maxSign == 1 ? ceil : floor;
+
+	let minLogAbs = logFn(abs(min))
+	let maxLogAbs = logFn(abs(max));
+
+	let minExp = growMinAbs(minLogAbs);
+	let maxExp = growMaxAbs(maxLogAbs);
+
+	let minIncr = pow(base, minExp);
+	let maxIncr = pow(base, maxExp);
+
+	// fix values like Math.pow(10, -5) === 0.000009999999999999999
+	if (base == 10) {
+		if (minExp < 0)
+			minIncr = roundDec(minIncr, -minExp);
+		if (maxExp < 0)
+			maxIncr = roundDec(maxIncr, -maxExp);
+	}
+
+	if (fullMags) {
+		min = minIncr * minSign;
+		max = maxIncr * maxSign;
+	}
+	else {
+		min = incrRoundDn(min, pow(base, floor(minLogAbs)), false);
+		max = incrRoundUp(max, pow(base, floor(maxLogAbs)), false);
+	}
+
+	return [min, max];
+}
+
+export function rangeAsinh(min?: any, max?: any, base?: any, fullMags?: any, ..._extra: any[]) {
+	let minMax = rangeLog(min, max, base, fullMags);
+
+	if (min == 0)
+		minMax[0] = 0;
+
+	if (max == 0)
+		minMax[1] = 0;
+
+	return minMax;
+}
+
+export const rangePad = 0.1;
+
+export const autoRangePart = {
+	mode: 3,
+	pad: rangePad,
+};
+
+const _eqRangePart = {
+	pad:  0,
+	soft: null,
+	mode: 0,
+};
+
+const _eqRange = {
+	min: _eqRangePart,
+	max: _eqRangePart,
+};
+
+// this ensures that non-temporal/numeric y-axes get multiple-snapped padding added above/below
+// TODO: also account for incrs when snapping to ensure top of axis gets a tick & value
+export function rangeNum(_min?: any, _max?: any, mult?: any, extra?: any, ..._extra: any[]) {
+	if (isObj(mult))
+		return _rangeNum(_min, _max, mult);
+
+	_eqRangePart.pad  = mult;
+	_eqRangePart.soft = extra ? 0 : null;
+	_eqRangePart.mode = extra ? 3 : 0;
+
+	return _rangeNum(_min, _max, _eqRange);
+}
+
+// nullish coalesce
+export function ifNull(lh?: any, rh?: any, ..._extra: any[]) {
+	return lh == null ? rh : lh;
+}
+
+// checks if given index range in an array contains a non-null value
+// aka a range-bounded Array.some()
+export function hasData(data?: any, idx0?: any, idx1?: any, ..._extra: any[]) {
+	idx0 = ifNull(idx0, 0);
+	idx1 = ifNull(idx1, data.length - 1);
+
+	while (idx0 <= idx1) {
+		if (data[idx0] != null)
+			return true;
+		idx0++;
+	}
+
+	return false;
+}
+
+function _rangeNum(_min?: any, _max?: any, cfg?: any, ..._extra: any[]) {
+	let cmin = cfg.min;
+	let cmax = cfg.max;
+
+	let padMin = ifNull(cmin.pad, 0);
+	let padMax = ifNull(cmax.pad, 0);
+
+	let hardMin = ifNull(cmin.hard, -inf);
+	let hardMax = ifNull(cmax.hard,  inf);
+
+	let softMin = ifNull(cmin.soft,  inf);
+	let softMax = ifNull(cmax.soft, -inf);
+
+	let softMinMode = ifNull(cmin.mode, 0);
+	let softMaxMode = ifNull(cmax.mode, 0);
+
+	let delta = _max - _min;
+	let deltaMag = log10(delta);
+
+	let scalarMax = max(abs(_min), abs(_max));
+	let scalarMag = log10(scalarMax);
+
+	let scalarMagDelta = abs(scalarMag - deltaMag);
+
+	// this handles situations like 89.7, 89.69999999999999
+	// by assuming 0.001x deltas are precision errors
+//	if (delta > 0 && delta < abs(_max) / 1e3)
+//		delta = 0;
+
+	// treat data as flat if delta is less than 1e-24
+	// or range is 11+ orders of magnitude below raw values, e.g. 99999999.99999996 - 100000000.00000004
+	if (delta < 1e-24 || scalarMagDelta > 10) {
+		delta = 0;
+
+		// if soft mode is 2 and all vals are flat at 0, avoid the 0.1 * 1e3 fallback
+		// this prevents 0,0,0 from ranging to -100,100 when softMin/softMax are -1,1
+		if (_min == 0 || _max == 0) {
+			delta = 1e-24;
+
+			if (softMinMode == 2 && softMin != inf)
+				padMin = 0;
+
+			if (softMaxMode == 2 && softMax != -inf)
+				padMax = 0;
+		}
+	}
+
+	let nonZeroDelta = delta || scalarMax || 1e3;
+	let mag          = log10(nonZeroDelta);
+	let base         = pow(10, floor(mag));
+
+	let _padMin  = nonZeroDelta * (delta == 0 ? (_min == 0 ? .1 : 1) : padMin);
+	let _newMin  = roundDec(incrRoundDn(_min - _padMin, base/10), 24);
+	let _softMin = _min >= softMin && (softMinMode == 1 || softMinMode == 3 && _newMin <= softMin || softMinMode == 2 && _newMin >= softMin) ? softMin : inf;
+	let minLim   = max(hardMin, _newMin < _softMin && _min >= _softMin ? _softMin : min(_softMin, _newMin));
+
+	let _padMax  = nonZeroDelta * (delta == 0 ? (_max == 0 ? .1 : 1) : padMax);
+	let _newMax  = roundDec(incrRoundUp(_max + _padMax, base/10), 24);
+	let _softMax = _max <= softMax && (softMaxMode == 1 || softMaxMode == 3 && _newMax >= softMax || softMaxMode == 2 && _newMax <= softMax) ? softMax : -inf;
+	let maxLim   = min(hardMax, _newMax > _softMax && _max <= _softMax ? _softMax : max(_softMax, _newMax));
+
+	// handle case when delta was small enough to cause fixFloat to have rounded off 6 decimals and result in min === max
+	if (minLim == maxLim) {
+		if (minLim == 0)
+			maxLim = 100;
+		else if (minLim < 0) {
+			minLim *= 2;
+			maxLim = 0;
+		}
+		else {
+			minLim = 0;
+			maxLim *= 2;
+		}
+	}
+
+	return [minLim, maxLim];
+}
+
+// alternative: https://stackoverflow.com/a/2254896
+const numFormatter = new Intl.NumberFormat();
+export const fmtNum = (val?: any, ..._extra: any[]) => numFormatter.format(val);
+
+const M = Math;
+
+export const PI = M.PI;
+export const abs = M.abs;
+export const floor = M.floor;
+export const round = M.round;
+export const ceil = M.ceil;
+export const min = M.min;
+export const max = M.max;
+export const pow = M.pow;
+export const sqrt = M.sqrt;
+export const sign = M.sign;
+export const log10 = M.log10;
+export const log2 = M.log2;
+// TODO: seems like this needs to match asinh impl if the passed v is tweaked?
+export const sinh =  (v?: any, linthresh: any = 1, ..._extra: any[]) => M.sinh(v) * linthresh;
+export const asinh = (v?: any, linthresh: any = 1, ..._extra: any[]) => M.asinh(v / linthresh);
+
+export const inf = Infinity;
+
+export function numIntDigits(x?: any, ..._extra: any[]) {
+	return (log10((x ^ (x >> 31)) - (x >> 31)) | 0) + 1;
+}
+
+export function clamp(num?: any, _min?: any, _max?: any, ..._extra: any[]) {
+	return min(max(num, _min), _max);
+}
+
+export function isFn(v?: any, ..._extra: any[]) {
+	return typeof v == "function";
+}
+
+export function fnOrSelf(v?: any, ..._extra: any[]) {
+	return isFn(v) ? v : () => v;
+}
+
+export const noop = () => {};
+
+// note: these identity fns may get deoptimized if reused for different arg types
+// a TS version would enforce they stay monotyped and require making variants
+export const retArg0 = (_0?: any, ..._extra: any[]) => _0;
+
+export const retArg1 = (_0?: any, _1?: any, ..._extra: any[]) => _1;
+
+export const retNull = (_?: any, ..._extra: any[]) => null;
+
+export const retTrue = (_?: any, ..._extra: any[]) => true;
+
+export const retEq = (a?: any, b?: any, ..._extra: any[]) => a == b;
+
+const regex6 = /\.\d*?(?=9{6,}|0{6,})/gm;
+
+// e.g. 17999.204999999998 -> 17999.205
+const fixFloat = (val?: any, ..._extra: any[]) => {
+	if (isInt(val) || fixedDec.has(val))
+		return val;
+
+	const str = `${val}`;
+
+	const match = str.match(regex6);
+
+	if (match == null)
+		return val;
+
+	let len = match[0].length - 1;
+
+	// e.g. 1.0000000000000001e-24
+	if (str.indexOf('e-') != -1) {
+		let [num, exp] = str.split('e');
+		return +`${fixFloat(num)}e${exp}`;
+	}
+
+	return roundDec(val, len);
+}
+
+export function incrRound(num?: any, incr?: any, _fixFloat: any = true, ..._extra: any[]) {
+	return _fixFloat ? fixFloat(roundDec(fixFloat(num/incr))*incr) : roundDec(num/incr)*incr;
+}
+
+export function incrRoundUp(num?: any, incr?: any, _fixFloat: any = true, ..._extra: any[]) {
+	return _fixFloat ? fixFloat(ceil(fixFloat(num/incr))*incr) : ceil(num/incr)*incr;
+}
+
+export function incrRoundDn(num?: any, incr?: any, _fixFloat: any = true, ..._extra: any[]) {
+	return _fixFloat ? fixFloat(floor(fixFloat(num/incr))*incr) : floor(num/incr)*incr;
+}
+
+// https://stackoverflow.com/a/48764436
+// rounds half away from zero
+export function roundDec(val?: any, dec: any = 0, ..._extra: any[]) {
+	if (isInt(val))
+		return val;
+//	else if (dec == 0)
+//		return round(val);
+
+	let p = 10 ** dec;
+	let n = (val * p) * (1 + Number.EPSILON);
+	return round(n) / p;
+}
+
+// https://stackoverflow.com/questions/14879691/get-number-of-digits-with-javascript/28203456#28203456
+export function numDigits(x?: any, ..._extra: any[]) {
+	return (log10((x ^ (x >> 31)) - (x >> 31)) | 0) + 1;
+}
+
+export const fixedDec = new Map();
+
+export function guessDec(num?: any, ..._extra: any[]) {
+	return ((""+num).split(".")[1] || "").length;
+}
+
+export function genIncrs(base?: any, minExp?: any, maxExp?: any, mults?: any, ..._extra: any[]) {
+	let incrs = [];
+
+	let multDec = mults.map(guessDec);
+
+	for (let exp = minExp; exp < maxExp; exp++) {
+		let expa = abs(exp);
+		let mag = roundDec(pow(base, exp), expa);
+
+		for (let i = 0; i < mults.length; i++) {
+			let _incr = base == 10 ? +`${mults[i]}e${exp}` : mults[i] * mag;
+			let dec = (exp >= 0 ? 0 : expa) + (exp >= multDec[i] ? 0 : multDec[i]);
+			let incr = base == 10 ? _incr : roundDec(_incr, dec);
+			incrs.push(incr);
+			fixedDec.set(incr, dec);
+		}
+	}
+
+	return incrs;
+}
+
+//export const assign = Object.assign;
+
+export const EMPTY_OBJ = {};
+export const EMPTY_ARR = [];
+
+export const nullNullTuple = [null, null];
+
+export const isArr = Array.isArray;
+export const isInt = Number.isInteger;
+export const isUndef = (v?: any, ..._extra: any[]) => v === void 0;
+
+export function isStr(v?: any, ..._extra: any[]) {
+	return typeof v == 'string';
+}
+
+export function cmpObj(a?: any, b?: any, ..._extra: any[]) {
+	for (let k in a) {
+		if (b[k] != a[k])
+			return false;
+	}
+
+	return true;
+}
+
+export function isObj(v?: any, ..._extra: any[]) {
+	let is = false;
+
+	if (v != null) {
+		let c = v.constructor;
+		is = c == null || c == Object;
+	}
+
+	return is;
+}
+
+export function fastIsObj(v?: any, ..._extra: any[]) {
+	return v != null && typeof v == 'object';
+}
+
+const TypedArray = Object.getPrototypeOf(Uint8Array);
+
+const __proto__ = "__proto__";
+
+export function copy(o?: any, _isObj: any = isObj, ..._extra: any[]) {
+	let out;
+
+	if (isArr(o)) {
+		let val = o.find(v => v != null);
+
+		if (isArr(val) || _isObj(val)) {
+			out = Array(o.length);
+			for (let i = 0; i < o.length; i++)
+				out[i] = copy(o[i], _isObj);
+		}
+		else
+			out = o.slice();
+	}
+	else if (o instanceof TypedArray) // also (ArrayBuffer.isView(o) && !(o instanceof DataView))
+		out = o.slice();
+	else if (_isObj(o)) {
+		out = {};
+		for (let k in o) {
+			if (k != __proto__)
+				out[k] = copy(o[k], _isObj);
+		}
+	}
+	else
+		out = o;
+
+	return out;
+}
+
+export function assign(targ?: any, ..._extra: any[]) {
+	let args = arguments;
+
+	for (let i = 1; i < args.length; i++) {
+		let src = args[i];
+
+		for (let key in src) {
+			if (key != __proto__) {
+				if (isObj(targ[key]))
+					assign(targ[key], copy(src[key]));
+				else
+					targ[key] = copy(src[key]);
+			}
+		}
+	}
+
+	return targ;
+}
+
+// nullModes
+const NULL_REMOVE = 0;  // nulls are converted to undefined (e.g. for spanGaps: true)
+const NULL_RETAIN = 1;  // nulls are retained, with alignment artifacts set to undefined (default)
+const NULL_EXPAND = 2;  // nulls are expanded to include any adjacent alignment artifacts
+
+// sets undefined values to nulls when adjacent to existing nulls (minesweeper)
+function nullExpand(yVals?: any, nullIdxs?: any, alignedLen?: any, ..._extra: any[]) {
+	for (let i = 0, xi, lastNullIdx = -1; i < nullIdxs.length; i++) {
+		let nullIdx = nullIdxs[i];
+
+		if (nullIdx > lastNullIdx) {
+			xi = nullIdx - 1;
+			while (xi >= 0 && yVals[xi] == null)
+				yVals[xi--] = null;
+
+			xi = nullIdx + 1;
+			while (xi < alignedLen && yVals[xi] == null)
+				yVals[lastNullIdx = xi++] = null;
+		}
+	}
+}
+
+// nullModes is a tables-matched array indicating how to treat nulls in each series
+// output is sorted ASC on the joined field (table[0]) and duplicate join values are collapsed
+export function join(tables?: any, nullModes?: any, ..._extra: any[]) {
+	if (allHeadersSame(tables)) {
+	//	console.log('cheap join!');
+
+		let table = tables[0].slice();
+
+		for (let i = 1; i < tables.length; i++)
+			table.push(...tables[i].slice(1));
+
+		if (!isAsc(table[0]))
+			table = sortCols(table);
+
+		return table;
+	}
+
+	let xVals = new Set<any>();
+
+	for (let ti = 0; ti < tables.length; ti++) {
+		let t = tables[ti];
+		let xs = t[0];
+		let len = xs.length;
+
+		for (let i = 0; i < len; i++)
+			xVals.add(xs[i]);
+	}
+
+	let data = [Array.from(xVals).sort((a, b) => a - b)];
+
+	let alignedLen = data[0].length;
+
+	let xIdxs = new Map();
+
+	for (let i = 0; i < alignedLen; i++)
+		xIdxs.set(data[0][i], i);
+
+	for (let ti = 0; ti < tables.length; ti++) {
+		let t = tables[ti];
+		let xs = t[0];
+
+		for (let si = 1; si < t.length; si++) {
+			let ys = t[si];
+
+			let yVals = Array(alignedLen).fill(undefined);
+
+			let nullMode = nullModes ? nullModes[ti][si] : NULL_RETAIN;
+
+			let nullIdxs = [];
+
+			for (let i = 0; i < ys.length; i++) {
+				let yVal = ys[i];
+				let alignedIdx = xIdxs.get(xs[i]);
+
+				if (yVal === null) {
+					if (nullMode != NULL_REMOVE) {
+						yVals[alignedIdx] = yVal;
+
+						if (nullMode == NULL_EXPAND)
+							nullIdxs.push(alignedIdx);
+					}
+				}
+				else
+					yVals[alignedIdx] = yVal;
+			}
+
+			nullExpand(yVals, nullIdxs, alignedLen);
+
+			data.push(yVals);
+		}
+	}
+
+	return data;
+}
+
+export const microTask = typeof queueMicrotask == "undefined" ? fn => Promise.resolve().then(fn) : queueMicrotask;
+
+// TODO: https://github.com/dy/sort-ids (~2x faster for 1e5+ arrays)
+function sortCols(table?: any, ..._extra: any[]) {
+	let head = table[0];
+	let rlen = head.length;
+
+	let idxs = Array(rlen);
+	for (let i = 0; i < idxs.length; i++)
+		idxs[i] = i;
+
+	idxs.sort((i0, i1) => head[i0] - head[i1]);
+
+	let table2 = [];
+	for (let i = 0; i < table.length; i++) {
+		let row = table[i];
+		let row2 = Array(rlen);
+
+		for (let j = 0; j < rlen; j++)
+			row2[j] = row[idxs[j]];
+
+		table2.push(row2);
+	}
+
+	return table2;
+}
+
+// test if we can do cheap join (all join fields same)
+function allHeadersSame(tables?: any, ..._extra: any[]) {
+	let vals0 = tables[0][0];
+	let len0 = vals0.length;
+
+	for (let i = 1; i < tables.length; i++) {
+		let vals1 = tables[i][0];
+
+		if (vals1.length != len0)
+			return false;
+
+		if (vals1 != vals0) {
+			for (let j = 0; j < len0; j++) {
+				if (vals1[j] != vals0[j])
+					return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+function isAsc(vals?: any, samples: any = 100, ..._extra: any[]) {
+	const len = vals.length;
+
+	// empty or single value
+	if (len <= 1)
+		return true;
+
+	// skip leading & trailing nullish
+	let firstIdx = 0;
+	let lastIdx = len - 1;
+
+	while (firstIdx <= lastIdx && vals[firstIdx] == null)
+		firstIdx++;
+
+	while (lastIdx >= firstIdx && vals[lastIdx] == null)
+		lastIdx--;
+
+	// all nullish or one value surrounded by nullish
+	if (lastIdx <= firstIdx)
+		return true;
+
+	const stride = max(1, floor((lastIdx - firstIdx + 1) / samples));
+
+	for (let prevVal = vals[firstIdx], i = firstIdx + stride; i <= lastIdx; i += stride) {
+		const v = vals[i];
+
+		if (v != null) {
+			if (v <= prevVal)
+				return false;
+
+			prevVal = v;
+		}
+	}
+
+	return true;
+}

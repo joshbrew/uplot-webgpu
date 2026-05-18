@@ -3,16 +3,16 @@ const config = {
     //serve:true //or enable this to skip build step (same as cli)
     bundler: { //esbuild settings, set false to skip build step or add bundle:true to config object to only bundle (alt methods)
         entryPoints: [ //entry point file(s). These can include .js, .mjs, .ts, .jsx, .tsx, or other javascript files. Make sure your entry point is a ts file if you want to generate types
-            // "./scripts/build/bench_demo.js"
-            "./index.js"
+            "./scripts/build/bench_demo.js"
+            // "./index.ts"
         ],
-        outfile: "dist/uPlot", //"dist/demo.js" //exit point file, will append .js as well as indicators like .esm.js, .node.js for other build flags
+        outfile: "dist/demo", //exit point file, will append .js as well as indicators like .esm.js, .node.js for other build flags
         //outdir:'dist',         //exit point folder, define for multiple entryPoints
 
         //we can run multiple esbuild configs separately, set to true to target different outputs, we'll put it all in the dist in a way that keeps the files separate (e.g. index.js for the browser, index.esm.js for esm, index.node.js for node, or if only 1 bundler specified just index.js for any, it's the most general) when using multiple bundlers, additionally when specifying an outdir instead of outfile.
         bundleBrowser: true, //create plain js build? Can include globals and init scripts
         bundleESM: true, //create esm module js files 
-        bundleTypes: false, //create .d.ts files, //you need a .tsconfig for this to work
+        bundleTypes: true, //create .d.ts files, //you need a .tsconfig for this to work
         bundleNode: false, //create node platform plain js build, specify platform:'node' to do the rest of the files 
         bundleHTML: false, //wrap the first entry point file as a plain js script in a boilerplate html file, frontend scripts can be run standalone like a .exe! Server serves this as start page if set to true.
         //bundleIIFE:false,   //create an iife build, this is compiled temporarily to create the types files and only saved with bundleIIFE:true
@@ -23,7 +23,7 @@ const config = {
         //includeDefaultPlugins:true //true by default, includes the presets for the streaming imports, worker bundling, and auto npm install
         //blobWorkers:true, //package workers as blobs or files? blobs are faster but inflate the main package size
         //workerBundler:{minifyWhitespace:true} //bundler settings specific to the worker. e.g. apply platform:'node' when bundling node workers, 
-        globalThis:'uPlot' //'mymodule'
+        globalThis:"uPlot" //'mymodule'
         //globals:{'index.js':['Graph']}
         //init:{'index.js':function(bundle) { console.log('prepackaged bundle script!', bundle); }.toString(); }      
         //  outputs:{ //overwrites main config settings for specific use cases, you can also just use objects instead of booleans on the above toggles for bundler modes
@@ -85,7 +85,7 @@ const config = {
         //delay: 50, //millisecond delay on the watch command for hot reloading
         //pwa: "service-worker.js",  //pwa mode? Injects service worker webpage code to live site, will create a service worker and webmanifest for you if not existent
         //watch: ['../'], //watch additional directories other than the current working directory
-        //ignore:['./assets'], //ignore these paths
+        ignore:['.d.ts'], //ignore these paths
         //extensions:['pdf'], //custom file extensions to watch
         errpage:  'node_modules/tinybuild/tinybuild/node_server/other/404.html', //default error page, etc.
         certpath: 'node_modules/tinybuild/tinybuild/node_server/ssl/server.crt',//if using https, this is required. See cert.pfx.md for instructions
